@@ -100,8 +100,12 @@ def nuevo_formulario():
     uid = session['uid']
     form_id = request.args.get('id')
 
-    conn = psycopg2.connect(**FORMS_DB_CONFIG)
-    cur = conn.cursor()
+    conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
+    cur_forms = conn_forms.cursor()
+
+    conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
+    cur_odoo = conn_odoo.cursor()
+
 
     if request.method == 'POST':
         titulo = request.form['titulo']
@@ -185,94 +189,101 @@ def nuevo_formulario():
 
 
 
-@app.route('/f/<form_id>', methods=['GET', 'POST'])
-def ver_formulario_publico(form_id):
+@app.route('/nuevo', methods=['GET', 'POST'])
+def nuevo_formulario():
+    if 'uid' not in session:
+        return redirect('/')
+
+    uid = session['uid']
+    form_id = request.args.get('id')
+
     conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
     cur_forms = conn_forms.cursor()
 
-    cur_forms.execute("SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto FROM x_formularios WHERE id = %s", (form_id,))
-    result = cur_forms.fetchone()
-
-    if not result:
-        cur_forms.close()
-        conn_forms.close()
-        return "Formulario no encontrado", 404
-
-    form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto = result
-
-    if isinstance(preguntas_json, str):
-        preguntas = json.loads(preguntas_json)
-    elif isinstance(preguntas_json, list):
-        preguntas = preguntas_json
-    else:
-        preguntas = []
-
-    # Obtener lista de estados
-    cur_forms.execute("""
-        SELECT id, name FROM res_country_state
-        ORDER BY
-            CASE WHEN country_id = (SELECT id FROM res_country WHERE code = 'MX') THEN 0 ELSE 1 END,
-            name
-    """)
-
-    estados = [{'id': row[0], 'name': row[1]} for row in cur_forms.fetchall()]
+    conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
+    cur_odoo = conn_odoo.cursor()
 
     if request.method == 'POST':
-        nombre = request.form['nombre']
-        empresa = request.form['empresa']
-        puesto = request.form['puesto']
-        correo = request.form['correo']
-        telefono = request.form['telefono']
+        titulo = request.form['titulo']
+        descripcion = request.form['descripcion']
+        x_user_seg = int(request.form['x_user_seg'])
+        linkto = request.form['linkto'] or None
         fuente = request.form.get('fuente')
-        linkedin_url = request.form.get('linkedin_url')
-        estado_id = int(request.form.get('estado_id'))
+        preguntas = request.form.getlist('preguntas[]')
 
-        respuestas = []
-        for pregunta in preguntas:
-            respuesta = request.form.get(pregunta, '')
-            respuestas.append(f"{pregunta}\n{respuesta}")
+        if form_id:
+            cur_forms.execute("""
+                UPDATE x_formularios
+                SET form_name = %s,
+                    form_desc = %s,
+                    x_user_seg = %s,
+                    form_questions = %s,
+                    linkto = %s,
+                    fuente = %s
+                WHERE id = %s
+            """, (titulo, descripcion, x_user_seg, json.dumps(preguntas), linkto, fuente, form_id))
+        else:
+            cur_forms.execute("""
+                INSERT INTO x_formularios (user_creator, user_id, x_user_seg, form_name, form_desc, form_questions, linkto)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (uid, uid, x_user_seg, titulo, descripcion, json.dumps(preguntas), linkto))
+            form_id = cur_forms.fetchone()[0]
 
-        descripcion_final = "\n\n".join(respuestas)
-        fuente_final = f"{fuente} - {form_name}" if fuente else form_name
-        now = datetime.now()
-
-        # 👇 Conexión a la base de datos de Odoo para insertar el lead
-        conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
-        cur_odoo = conn_odoo.cursor()
-
-        cur_odoo.execute("""
-            INSERT INTO crm_lead (
-                name, contact_name, email_from, phone, partner_name, description,
-                user_id, x_user_seg, type, stage_id, team_id, active,
-                create_date, write_date, x_fuentecontacto, x_url, state_id
-            ) VALUES (%s, %s, %s, %s, %s, %s,
-                      %s, %s, 'opportunity', 1, 1, TRUE,
-                      %s, %s, %s, %s, %s)
-        """, (
-            f"Contacto Web: {nombre}", nombre, correo, telefono, empresa,
-            descripcion_final, user_id, x_user_seg,
-            now, now, fuente_final, linkedin_url, estado_id
-        ))
-
-        conn_odoo.commit()
-
-        # ✅ Cerrar ambas conexiones
+        conn_forms.commit()
         cur_forms.close()
         conn_forms.close()
         cur_odoo.close()
         conn_odoo.close()
 
-        if linkto and linkto.startswith(('http://', 'https://')):
-            return redirect(linkto)
-        return redirect(url_for('gracias'))
+        return render_template('form_guardado.html', link=f"{BASE_URL}/f/{form_id}")
+
+    # Si es GET, cargar datos para edición
+    titulo = descripcion = linkto = ''
+    x_user_seg = None
+    preguntas = []
+
+    if form_id:
+        cur_forms.execute("SELECT form_name, form_desc, x_user_seg, form_questions, linkto FROM x_formularios WHERE id = %s", (form_id,))
+        row = cur_forms.fetchone()
+        if row:
+            titulo, descripcion, x_user_seg, preguntas_json, linkto = row
+            if isinstance(preguntas_json, str):
+                preguntas = json.loads(preguntas_json)
+            elif isinstance(preguntas_json, list):
+                preguntas = preguntas_json
+
+    # Obtener usuarios desde Odoo
+    cur_odoo.execute("""
+        SELECT u.id, p.name
+        FROM res_users u
+        JOIN res_partner p ON u.partner_id = p.id
+        WHERE u.share = FALSE
+        ORDER BY p.name
+    """)
+    users = [{'id': row[0], 'name': row[1]} for row in cur_odoo.fetchall()]
+
+    # Obtener estados desde Odoo
+    cur_odoo.execute("""
+        SELECT id, name FROM res_country_state
+        ORDER BY
+            CASE WHEN country_id = (SELECT id FROM res_country WHERE code = 'MX') THEN 0 ELSE 1 END,
+            name
+    """)
+    estados = [{'id': row[0], 'name': row[1]} for row in cur_odoo.fetchall()]
 
     cur_forms.close()
     conn_forms.close()
+    cur_odoo.close()
+    conn_odoo.close()
 
-    return render_template('public_form.html',
-                           form_name=form_name,
-                           form_desc=form_desc,
+    return render_template('nuevo.html',
+                           titulo=titulo,
+                           descripcion=descripcion,
+                           x_user_seg=x_user_seg,
                            preguntas=preguntas,
+                           linkto=linkto,
+                           users=users,
                            estados=estados)
 
 
@@ -282,9 +293,11 @@ def editar_formulario(form_id):
     if 'uid' not in session:
         return redirect('/')
 
-    conn = psycopg2.connect(**FORMS_DB_CONFIG)
+    conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
+    cur_forms = conn_forms.cursor()
+
     conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
-    cur = conn.cursor()
+    cur_odoo = conn_odoo.cursor()
 
     if request.method == 'POST':
         # Guardar los cambios
@@ -297,8 +310,8 @@ def editar_formulario(form_id):
         estado_id = int(request.form.get('estado_id'))
 
         preguntas = request.form.getlist('preguntas[]')
-        
-        cur.execute("""
+
+        cur_forms.execute("""
             UPDATE x_formularios
             SET form_name = %s,
                 form_desc = %s,
@@ -307,17 +320,26 @@ def editar_formulario(form_id):
                 linkto = %s
             WHERE id = %s
         """, (titulo, descripcion, x_user_seg, json.dumps(preguntas), linkto, form_id))
-        conn_odoo.commit()
-        cur.close()
+
+        conn_forms.commit()
+
+        # Cerrar todo
+        cur_forms.close()
+        conn_forms.close()
+        cur_odoo.close()
         conn_odoo.close()
 
         return redirect('/dashboard')
 
     # Obtener los datos actuales para precargar el formulario
-    cur.execute("SELECT form_name, form_desc, x_user_seg, form_questions, linkto FROM x_formularios WHERE id = %s", (form_id,))
-    row = cur.fetchone()
+    cur_forms.execute("SELECT form_name, form_desc, x_user_seg, form_questions, linkto FROM x_formularios WHERE id = %s", (form_id,))
+    row = cur_forms.fetchone()
 
     if not row:
+        cur_forms.close()
+        conn_forms.close()
+        cur_odoo.close()
+        conn_odoo.close()
         return "Formulario no encontrado", 404
 
     titulo, descripcion, x_user_seg, preguntas_json, linkto = row
@@ -328,19 +350,21 @@ def editar_formulario(form_id):
     else:
         preguntas = []
 
-
-    # Obtener lista de usuarios
-    cur.execute("""
+    # Obtener lista de usuarios (de Odoo)
+    cur_odoo.execute("""
         SELECT u.id, p.name
         FROM res_users u
         JOIN res_partner p ON u.partner_id = p.id
         WHERE u.share = FALSE
         ORDER BY p.name
     """)
-    users = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    users = [{'id': row[0], 'name': row[1]} for row in cur_odoo.fetchall()]
 
-    cur.close()
-    conn.close()
+    # Cerrar todo
+    cur_forms.close()
+    conn_forms.close()
+    cur_odoo.close()
+    conn_odoo.close()
 
     return render_template('nuevo.html',
         editando=True,
