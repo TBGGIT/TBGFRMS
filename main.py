@@ -193,10 +193,14 @@ def nuevo_formulario():
 
 @app.route('/f/<form_id>', methods=['GET', 'POST'])
 def ver_formulario_publico(form_id):
+    # Conexión a la base de datos de formularios
     conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
     cur_forms = conn_forms.cursor()
 
-    cur_forms.execute("SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto FROM x_formularios WHERE id = %s", (form_id,))
+    cur_forms.execute("""
+        SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto
+        FROM x_formularios WHERE id = %s
+    """, (form_id,))
     result = cur_forms.fetchone()
 
     if not result:
@@ -206,12 +210,11 @@ def ver_formulario_publico(form_id):
 
     form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto = result
 
+    preguntas = []
     if isinstance(preguntas_json, str):
         preguntas = json.loads(preguntas_json)
     elif isinstance(preguntas_json, list):
         preguntas = preguntas_json
-    else:
-        preguntas = []
 
     # Obtener lista de estados
     cur_forms.execute("""
@@ -220,7 +223,6 @@ def ver_formulario_publico(form_id):
             CASE WHEN country_id = (SELECT id FROM res_country WHERE code = 'MX') THEN 0 ELSE 1 END,
             name
     """)
-
     estados = [{'id': row[0], 'name': row[1]} for row in cur_forms.fetchall()]
 
     if request.method == 'POST':
@@ -242,7 +244,7 @@ def ver_formulario_publico(form_id):
         fuente_final = f"{fuente} - {form_name}" if fuente else form_name
         now = datetime.now()
 
-        # 👇 Conexión a la base de datos de Odoo para insertar el lead
+        # Conexión a Odoo
         conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
         cur_odoo = conn_odoo.cursor()
 
@@ -261,17 +263,16 @@ def ver_formulario_publico(form_id):
         ))
 
         conn_odoo.commit()
-
-        # ✅ Cerrar ambas conexiones
-        cur_forms.close()
-        conn_forms.close()
         cur_odoo.close()
         conn_odoo.close()
+        cur_forms.close()
+        conn_forms.close()
 
         if linkto and linkto.startswith(('http://', 'https://')):
             return redirect(linkto)
         return redirect(url_for('gracias'))
 
+    # GET: mostrar formulario
     cur_forms.close()
     conn_forms.close()
 
