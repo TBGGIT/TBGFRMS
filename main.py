@@ -284,6 +284,7 @@ def ver_formulario_publico(form_id):
 
 
 
+
 @app.route('/editar/<int:form_id>', methods=['GET', 'POST'])
 def editar_formulario(form_id):
     if 'uid' not in session:
