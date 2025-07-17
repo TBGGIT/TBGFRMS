@@ -41,7 +41,7 @@ def login():
         if password != 'tbg1212?':
             return render_template('login.html', error="Contraseña incorrecta")
 
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(**ODOO_DB_CONFIG)
         cur = conn.cursor()
 
         # Buscar al usuario por correo
@@ -78,7 +78,7 @@ def dashboard():
         return redirect('/')
 
     uid = session['uid']
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(**FORMS_DB_CONFIG)
     cur = conn.cursor()
 
     if uid in [1, 2, 3]:
@@ -100,7 +100,7 @@ def nuevo_formulario():
     uid = session['uid']
     form_id = request.args.get('id')
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(**FORMS_DB_CONFIG)
     cur = conn.cursor()
 
     if request.method == 'POST':
@@ -187,15 +187,15 @@ def nuevo_formulario():
 
 @app.route('/f/<form_id>', methods=['GET', 'POST'])
 def ver_formulario_publico(form_id):
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
+    conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
+    cur_forms = conn_forms.cursor()
 
-    cur.execute("SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto FROM x_formularios WHERE id = %s", (form_id,))
-    result = cur.fetchone()
+    cur_forms.execute("SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto FROM x_formularios WHERE id = %s", (form_id,))
+    result = cur_forms.fetchone()
 
     if not result:
-        cur.close()
-        conn.close()
+        cur_forms.close()
+        conn_forms.close()
         return "Formulario no encontrado", 404
 
     form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto = result
@@ -208,14 +208,14 @@ def ver_formulario_publico(form_id):
         preguntas = []
 
     # Obtener lista de estados
-    cur.execute("""
+    cur_forms.execute("""
         SELECT id, name FROM res_country_state
         ORDER BY
             CASE WHEN country_id = (SELECT id FROM res_country WHERE code = 'MX') THEN 0 ELSE 1 END,
             name
     """)
 
-    estados = [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
+    estados = [{'id': row[0], 'name': row[1]} for row in cur_forms.fetchall()]
 
     if request.method == 'POST':
         nombre = request.form['nombre']
@@ -233,11 +233,14 @@ def ver_formulario_publico(form_id):
             respuestas.append(f"{pregunta}\n{respuesta}")
 
         descripcion_final = "\n\n".join(respuestas)
-
         fuente_final = f"{fuente} - {form_name}" if fuente else form_name
-
         now = datetime.now()
-        cur.execute("""
+
+        # 👇 Conexión a la base de datos de Odoo para insertar el lead
+        conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
+        cur_odoo = conn_odoo.cursor()
+
+        cur_odoo.execute("""
             INSERT INTO crm_lead (
                 name, contact_name, email_from, phone, partner_name, description,
                 user_id, x_user_seg, type, stage_id, team_id, active,
@@ -251,16 +254,20 @@ def ver_formulario_publico(form_id):
             now, now, fuente_final, linkedin_url, estado_id
         ))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+        conn_odoo.commit()
+
+        # ✅ Cerrar ambas conexiones
+        cur_forms.close()
+        conn_forms.close()
+        cur_odoo.close()
+        conn_odoo.close()
 
         if linkto and linkto.startswith(('http://', 'https://')):
             return redirect(linkto)
         return redirect(url_for('gracias'))
 
-    cur.close()
-    conn.close()
+    cur_forms.close()
+    conn_forms.close()
 
     return render_template('public_form.html',
                            form_name=form_name,
@@ -269,12 +276,13 @@ def ver_formulario_publico(form_id):
                            estados=estados)
 
 
+
 @app.route('/editar/<int:form_id>', methods=['GET', 'POST'])
 def editar_formulario(form_id):
     if 'uid' not in session:
         return redirect('/')
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(**FORMS_DB_CONFIG)
     cur = conn.cursor()
 
     if request.method == 'POST':
@@ -347,6 +355,8 @@ def editar_formulario(form_id):
 @app.route('/gracias')
 def gracias():
     return render_template('gracias.html')
+
+
 
 # Ejecutar en puerto 5001
 if __name__ == '__main__':
