@@ -283,6 +283,7 @@ def editar_formulario(form_id):
         return redirect('/')
 
     conn = psycopg2.connect(**FORMS_DB_CONFIG)
+    conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
     cur = conn.cursor()
 
     if request.method == 'POST':
@@ -296,7 +297,7 @@ def editar_formulario(form_id):
         estado_id = int(request.form.get('estado_id'))
 
         preguntas = request.form.getlist('preguntas[]')
-
+        
         cur.execute("""
             UPDATE x_formularios
             SET form_name = %s,
@@ -306,9 +307,9 @@ def editar_formulario(form_id):
                 linkto = %s
             WHERE id = %s
         """, (titulo, descripcion, x_user_seg, json.dumps(preguntas), linkto, form_id))
-        conn.commit()
+        conn_odoo.commit()
         cur.close()
-        conn.close()
+        conn_odoo.close()
 
         return redirect('/dashboard')
 
