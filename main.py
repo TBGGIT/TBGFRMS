@@ -193,13 +193,13 @@ def nuevo_formulario():
 
 @app.route('/f/<form_id>', methods=['GET', 'POST'])
 def ver_formulario_publico(form_id):
-    # Conexión a la base de datos de formularios
     conn_forms = psycopg2.connect(**FORMS_DB_CONFIG)
     cur_forms = conn_forms.cursor()
 
     cur_forms.execute("""
         SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto
-        FROM x_formularios WHERE id = %s
+        FROM x_formularios
+        WHERE id = %s
     """, (form_id,))
     result = cur_forms.fetchone()
 
@@ -210,20 +210,25 @@ def ver_formulario_publico(form_id):
 
     form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto = result
 
-    preguntas = []
     if isinstance(preguntas_json, str):
         preguntas = json.loads(preguntas_json)
     elif isinstance(preguntas_json, list):
         preguntas = preguntas_json
+    else:
+        preguntas = []
 
-    # Obtener lista de estados
-    cur_forms.execute("""
+    # 👇 Conexión a Odoo para obtener estados
+    conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
+    cur_odoo = conn_odoo.cursor()
+    cur_odoo.execute("""
         SELECT id, name FROM res_country_state
         ORDER BY
             CASE WHEN country_id = (SELECT id FROM res_country WHERE code = 'MX') THEN 0 ELSE 1 END,
             name
     """)
-    estados = [{'id': row[0], 'name': row[1]} for row in cur_forms.fetchall()]
+    estados = [{'id': row[0], 'name': row[1]} for row in cur_odoo.fetchall()]
+    cur_odoo.close()
+    conn_odoo.close()
 
     if request.method == 'POST':
         nombre = request.form['nombre']
@@ -244,7 +249,7 @@ def ver_formulario_publico(form_id):
         fuente_final = f"{fuente} - {form_name}" if fuente else form_name
         now = datetime.now()
 
-        # Conexión a Odoo
+        # Conexión a Odoo para insertar el lead
         conn_odoo = psycopg2.connect(**ODOO_DB_CONFIG)
         cur_odoo = conn_odoo.cursor()
 
@@ -265,6 +270,7 @@ def ver_formulario_publico(form_id):
         conn_odoo.commit()
         cur_odoo.close()
         conn_odoo.close()
+
         cur_forms.close()
         conn_forms.close()
 
@@ -272,7 +278,6 @@ def ver_formulario_publico(form_id):
             return redirect(linkto)
         return redirect(url_for('gracias'))
 
-    # GET: mostrar formulario
     cur_forms.close()
     conn_forms.close()
 
@@ -281,8 +286,6 @@ def ver_formulario_publico(form_id):
                            form_desc=form_desc,
                            preguntas=preguntas,
                            estados=estados)
-
-
 
 
 @app.route('/editar/<int:form_id>', methods=['GET', 'POST'])
