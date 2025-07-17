@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if editando %}Editar Formulario{% else %}Nuevo Formulario{% endif %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <script>
+        function agregarPregunta(valor = '') {
+            const lista = document.getElementById('preguntas');
+            const input = document.createElement('div');
+            input.classList.add('input-group', 'mb-2');
+            input.innerHTML = `
+                <input type="text" name="preguntas[]" class="form-control" placeholder="Pregunta personalizada" required value="${valor}">
+                <button class="btn btn-danger" type="button" onclick="this.parentElement.remove()">−</button>
+            `;
+            lista.appendChild(input);
+        }
+
+        // Al cargar la página, agregar preguntas si hay
+        window.onload = function () {
+            {% if preguntas %}
+                {% for pregunta in preguntas %}
+                    agregarPregunta(`{{ pregunta | escape }}`);
+                {% endfor %}
+            {% endif %}
+        };
+    </script>
+</head>
+<body>
+    <div class="logo-container">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="FOR Logo">
+</div>
+<div class="container mt-5">
+    <h2>{% if editando %}Editar formulario{% else %}Crear nuevo formulario{% endif %}</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label>Título del formulario</label>
+            <input class="form-control" name="titulo" required value="{{ titulo or '' }}">
+        </div>
+        <div class="mb-3">
+            <label>Descripción</label>
+            <textarea class="form-control" name="descripcion">{{ descripcion or '' }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label>Usuario de seguimiento</label>
+            <select class="form-control" name="x_user_seg" required>
+                {% for user in users %}
+                    <option value="{{ user.id }}" {% if user.id == x_user_seg %}selected{% endif %}>
+                        {{ user.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label>Fuente (para identificar en CRM)</label>
+            <select class="form-control" name="fuente" required>
+                <option value="" disabled selected>Selecciona una fuente</option>
+                <option value="Linkedin">Linkedin</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Whatsapp">Whatsapp</option>
+                <option value="Evento">Evento</option>
+                <option value="Redes">Redes</option>
+            </select>
+        </div>
+
+        <h5>Preguntas adicionales:</h5>
+        <div id="preguntas"></div>
+        <button type="button" class="btn btn-outline-secondary mb-3" onclick="agregarPregunta()">➕ Agregar pregunta</button>
+
+        <div class="mb-3">
+            <label>Enlace de redirección (opcional)</label>
+            <input class="form-control" name="linkto" placeholder="https://tusitio.com/gracias" value="{{ linkto or '' }}">
+        </div>
+
+        <button class="btn btn-success">{% if editando %}Guardar cambios{% else %}Guardar formulario{% endif %}</button>
+    </form>
+</div>
+</body>
+</html>

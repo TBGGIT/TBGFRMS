@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+    
+<head>
+    <meta charset="UTF-8">
+    <title>Mis Formularios</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script>
+        function copiar(link) {
+            navigator.clipboard.writeText(link).then(() => alert("¡Copiado!"));
+        }
+    </script>
+</head>
+<body>
+    <div class="logo-container">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="FOR Logo">
+</div>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between mb-4">
+        <h2>Bienvenido, {{ username }}</h2>
+        <a href="/logout" class="btn btn-danger">Cerrar sesión</a>
+    </div>
+
+    <a href="/nuevo" class="btn btn-success mb-4">➕ Crear nuevo formulario</a>
+
+    {% if formularios %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in formularios %}
+                <tr>
+                    <td>{{ f[1] }}</td>
+                    <td>{{ f[2] }}</td>
+                    <td>
+                        <button onclick="copiar('{{ base_url }}/f/{{ f[0] }}')" class="btn btn-outline-secondary btn-sm">📋 Copiar link</button>
+                        <a href="/nuevo?id={{ f[0] }}" class="btn btn-outline-primary btn-sm">✏️ Editar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No tienes formularios creados.</p>
+    {% endif %}
+</div>
+</body>
+</html>

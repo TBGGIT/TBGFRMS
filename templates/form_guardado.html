@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario Guardado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="logo-container">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="FOR Logo">
+</div>
+<div class="container mt-5 text-center">
+    <h3>✅ Formulario guardado correctamente</h3>
+    <p>Este es el link para compartir:</p>
+    <div class="alert alert-info">
+        <code>{{ link }}</code>
+    </div>
+    <a href="/dashboard" class="btn btn-primary">Volver al dashboard</a>
+</div>
+</body>
+</html>

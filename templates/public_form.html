@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ form_name }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+<body>
+    <div class="logo-container">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="FOR Logo">
+</div>
+<div class="container mt-5">
+    <h2>{{ form_name }}</h2>
+    <p>{{ form_desc }}</p>
+    <form method="POST">
+        <div class="mb-3">
+            <label>Nombre completo</label>
+            <input class="form-control" name="nombre" required>
+        </div>
+        <div class="mb-3">
+            <label>Empresa</label>
+            <input class="form-control" name="empresa">
+        </div>
+        <div class="mb-3">
+            <label>Puesto</label>
+            <input class="form-control" name="puesto">
+        </div>
+        <div class="mb-3">
+            <label>Correo</label>
+            <input class="form-control" name="correo" type="email" required>
+        </div>
+        <div class="mb-3">
+            <label>Teléfono</label>
+            <input class="form-control" name="telefono">
+        </div>
+        <div class="mb-3">
+            <label>Campo de LinkedIn (URL del contacto)</label>
+            <input class="form-control" name="linkedin_url" placeholder="https://linkedin.com/in/usuario">
+        </div>
+
+        <div class="mb-3">
+            <label>Estado</label>
+                <select class="form-control" name="estado_id" required>
+                    <option value="" disabled selected>Selecciona un estado…</option>
+                    {% for estado in estados %}
+                        <option value="{{ estado.id }}">{{ estado.name }}</option>
+                    {% endfor %}
+                </select>
+        </div>
+        {% for p in preguntas %}
+            <div class="mb-3">
+                <label>{{ p }}</label>
+                <input class="form-control" name="{{ p }}">
+            </div>
+        {% endfor %}
+
+        <button class="btn btn-success">Enviar</button>
+    </form>
+</div>
+</body>
+</html>
