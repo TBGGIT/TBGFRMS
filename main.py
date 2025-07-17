@@ -39,7 +39,7 @@ def login():
         password = request.form['password']
 
         if password != 'tbg1212?':
-            return render_template('login.html', error="Contraseña incorrecta (debe ser tbg1212?)")
+            return render_template('login.html', error="Contraseña incorrecta")
 
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
