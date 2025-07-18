@@ -5,9 +5,13 @@ import json
 import uuid
 from datetime import datetime
 
+
 app = Flask(__name__)
 app.secret_key = '862992970d89d6d6a7f03204154a0e9fd69c489ff9a4334f5e696faf87a17780'
-
+app.config.update(
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True
+)
 # Leer la URL base del sitio (para generar links públicos)
 with open("conf.txt", "r") as f:
     BASE_URL = f.read().strip()
