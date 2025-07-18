@@ -199,10 +199,11 @@ def ver_formulario_publico(form_id):
     cur_forms = conn_forms.cursor()
 
     cur_forms.execute("""
-        SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto
+        SELECT form_name, form_desc, form_questions, user_id, x_user_seg, linkto, fuente
         FROM x_formularios
         WHERE id = %s
     """, (form_id,))
+
     result = cur_forms.fetchone()
 
     if not result:
@@ -210,7 +211,7 @@ def ver_formulario_publico(form_id):
         conn_forms.close()
         return "Formulario no encontrado", 404
 
-    form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto = result
+    form_name, form_desc, preguntas_json, user_id, x_user_seg, linkto, fuente = result
 
     if isinstance(preguntas_json, str):
         preguntas = json.loads(preguntas_json)
@@ -238,7 +239,6 @@ def ver_formulario_publico(form_id):
         puesto = request.form['puesto']
         correo = request.form['correo']
         telefono = request.form['telefono']
-        fuente = request.form.get('fuente')
         linkedin_url = request.form.get('linkedin_url')
         estado_id = int(request.form.get('estado_id'))
 
