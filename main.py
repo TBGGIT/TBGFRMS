@@ -147,10 +147,10 @@ def nuevo_formulario():
     preguntas = []
 
     if form_id:
-        cur_forms.execute("SELECT form_name, form_desc, x_user_seg, form_questions, linkto FROM x_formularios WHERE id = %s", (form_id,))
+        cur_forms.execute("SELECT form_name, form_desc, x_user_seg, form_questions, linkto, fuente FROM x_formularios WHERE id = %s", (form_id,))
         row = cur_forms.fetchone()
         if row:
-            titulo, descripcion, x_user_seg, preguntas_json, linkto = row
+            titulo, descripcion, x_user_seg, preguntas_json, linkto, fuente = row
             if isinstance(preguntas_json, str):
                 preguntas = json.loads(preguntas_json)
             elif isinstance(preguntas_json, list):
@@ -181,13 +181,15 @@ def nuevo_formulario():
     conn_odoo.close()
 
     return render_template('nuevo.html',
-                           titulo=titulo,
-                           descripcion=descripcion,
-                           x_user_seg=x_user_seg,
-                           preguntas=preguntas,
-                           linkto=linkto,
-                           users=users,
-                           estados=estados)
+        editando=True,
+        form_id=form_id,
+        titulo=titulo,
+        descripcion=descripcion,
+        x_user_seg=x_user_seg,
+        linkto=linkto,
+        preguntas=preguntas,
+        fuente=fuente,
+        users=users)
 
 
 
@@ -361,6 +363,7 @@ def editar_formulario(form_id):
         x_user_seg=x_user_seg,
         linkto=linkto,
         preguntas=preguntas,
+        fuente=fuente,
         users=users)
 
 

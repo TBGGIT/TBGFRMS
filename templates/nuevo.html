@@ -56,16 +56,16 @@
         <div class="mb-3">
             <label>Fuente (para identificar en CRM)</label>
             <select class="form-control" name="fuente" required>
-                <option value="" disabled selected>Selecciona una fuente</option>
-                <option value="Linkedin">Linkedin</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Instagram">Instagram</option>
-                <option value="Whatsapp">Whatsapp</option>
-                <option value="Evento">Evento</option>
-                <option value="Redes">Redes</option>
-                <option value="Redes">Twitter</option>
-                <option value="Redes">TikTok</option>
-                <option value="Redes">Mailing</option>
+                <option value="" disabled {% if not fuente %}selected{% endif %}>Selecciona una fuente</option>
+                <option value="Linkedin" {% if fuente == 'Linkedin' %}selected{% endif %}>Linkedin</option>
+                <option value="Facebook" {% if fuente == 'Facebook' %}selected{% endif %}>Facebook</option>
+                <option value="Instagram" {% if fuente == 'Instagram' %}selected{% endif %}>Instagram</option>
+                <option value="Whatsapp" {% if fuente == 'Whatsapp' %}selected{% endif %}>Whatsapp</option>
+                <option value="Evento" {% if fuente == 'Evento' %}selected{% endif %}>Evento</option>
+                <option value="Redes" {% if fuente == 'Redes' %}selected{% endif %}>Redes</option>
+                <option value="Twitter" {% if fuente == 'Twitter' %}selected{% endif %}>Twitter</option>
+                <option value="TikTok" {% if fuente == 'TikTok' %}selected{% endif %}>TikTok</option>
+                <option value="Mailing" {% if fuente == 'Mailing' %}selected{% endif %}>Mailing</option>
             </select>
         </div>
 
