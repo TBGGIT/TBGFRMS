@@ -246,7 +246,7 @@ def ver_formulario_publico(form_id):
             respuestas.append(f"{pregunta}\n{respuesta}")
 
         descripcion_final = "\n\n".join(respuestas)
-        fuente_final = f"{fuente} - {form_name}" if fuente else form_name
+        fuente_final = f"{fuente} - {form_name}"
         now = datetime.now()
 
         # Conexión a Odoo para insertar el lead
@@ -256,14 +256,14 @@ def ver_formulario_publico(form_id):
         cur_odoo.execute("""
             INSERT INTO crm_lead (
                 name, contact_name, email_from, phone, partner_name, description,
-                user_id, x_user_seg, type, stage_id, team_id, active,
+                user_id, x_user_seg, x_inductor, type, stage_id, team_id, active,
                 create_date, write_date, x_fuentecontacto, x_url, state_id
             ) VALUES (%s, %s, %s, %s, %s, %s,
-                      %s, %s, 'opportunity', 1, 1, TRUE,
+                      %s, %s, %s, 'opportunity', 1, 1, TRUE,
                       %s, %s, %s, %s, %s)
         """, (
             f"Contacto Web: {nombre}", nombre, correo, telefono, empresa,
-            descripcion_final, user_id, x_user_seg,
+            descripcion_final, user_id, user_id, x_user_seg,
             now, now, fuente_final, linkedin_url, estado_id
         ))
 
