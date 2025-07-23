@@ -38,6 +38,8 @@ exec(decrypted_data)
 # RUTAS ------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    if 'uid' in session:
+        return redirect('/dashboard')
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
