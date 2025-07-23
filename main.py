@@ -131,10 +131,10 @@ def nuevo_formulario():
             """, (titulo, descripcion, x_user_seg, json.dumps(preguntas), linkto, fuente, form_id))
         else:
             cur_forms.execute("""
-                INSERT INTO x_formularios (user_creator, user_id, x_user_seg, form_name, form_desc, form_questions, linkto)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO x_formularios (user_creator, user_id, x_user_seg, form_name, form_desc, form_questions, linkto, fuente)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (uid, uid, x_user_seg, titulo, descripcion, json.dumps(preguntas), linkto))
+            """, (uid, uid, x_user_seg, titulo, descripcion, json.dumps(preguntas), linkto, fuente))
             form_id = cur_forms.fetchone()[0]
 
         conn_forms.commit()
@@ -146,7 +146,7 @@ def nuevo_formulario():
         return render_template('form_guardado.html', link=f"{BASE_URL}/f/{form_id}")
 
     # Si es GET, cargar datos para edición
-    titulo = descripcion = linkto = ''
+    titulo = descripcion = linkto = fuente = ''
     x_user_seg = None
     preguntas = []
 
