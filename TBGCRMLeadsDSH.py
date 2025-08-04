@@ -48,7 +48,7 @@ def normalizar_etapa(texto):
 
 COMPARADORES_ETAPAS = {normalizar_etapa(etapa): etapa for etapa in ETAPAS_ORDENADAS}
 
-def get_stage_durations(anio=None, mes=None):
+def get_stage_durations(anio=None, mes=None, fecha_inicio=None, fecha_fin=None):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute("""
@@ -85,7 +85,11 @@ def get_stage_durations(anio=None, mes=None):
             continue
         if mes and (fecha_etapa is None or fecha_etapa.month != mes):
             continue
-
+        if fecha_etapa:
+            if fecha_inicio and fecha_etapa < fecha_inicio:
+                continue
+            if fecha_fin and fecha_etapa > fecha_fin:
+                continue
         if lead_id not in etapas_por_lead:
             etapas_por_lead[lead_id] = []
         etapas_por_lead[lead_id].append((empresa, contacto, etapa, fecha_etapa))
@@ -135,6 +139,11 @@ def duracion_etapas():
     anio = int(request.args.get('anio', datetime.now().year))
 
     mes_raw = request.args.get('mes')
+    fecha_inicio_raw = request.args.get('fecha_inicio')
+    fecha_fin_raw = request.args.get('fecha_fin')
+
+    fecha_inicio = datetime.strptime(fecha_inicio_raw, '%Y-%m-%d') if fecha_inicio_raw else None
+    fecha_fin = datetime.strptime(fecha_fin_raw, '%Y-%m-%d') if fecha_fin_raw else None
     mes = int(mes_raw) if mes_raw and mes_raw.isdigit() else None
 
     try:
@@ -151,9 +160,7 @@ def duracion_etapas():
     if not selected_etapas:
         selected_etapas = ETAPAS_ORDENADAS
 
-    all_data, contador_etapas = get_stage_durations(anio=anio, mes=mes)
-
-
+    all_data, contador_etapas = get_stage_durations(anio=anio, mes=mes, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
     empresas = {}
     for row in all_data:
         empresa, contacto, etapa, dias, fecha, clase = row
@@ -214,6 +221,13 @@ def duracion_etapas():
                 border-radius: 5px;
                 font-weight: bold;
             }
+            .rango-fechas {
+                border: 2px solid #555;
+                padding: 10px;
+                border-radius: 8px;
+                margin: 15px 0;
+                background-color: #1a1a1a;
+            }
         </style>
     </head>
     <body>
@@ -236,11 +250,27 @@ def duracion_etapas():
                 Mes:
                 <select name="mes">
                     <option value="">Todo el año</option>
+                    {% set MESES_ES_NOMBRES = {
+                        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+                        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+                        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+                    } %}
                     {% for m in range(1, 13) %}
-                        <option value="{{m}}" {% if m == mes %}selected{% endif %}>{{m}}</option>
+                        <option value="{{m}}" {% if m == mes %}selected{% endif %}>{{MESES_ES_NOMBRES[m]}}</option>
                     {% endfor %}
                 </select>
             </label>
+            <div class="rango-fechas">
+                <label><strong>Filtrar por rango de fechas:</strong></label><br><br>
+                <label>
+                    Desde: <input type="date" name="fecha_inicio" value="{{fecha_inicio}}">
+                </label>
+                <label style="margin-left: 20px;">
+                    Hasta: <input type="date" name="fecha_fin" value="{{fecha_fin}}">
+                </label>
+            </div>
+
+
             {% for e in etapas %}
                 <label>
                     <input type="checkbox" name="etapa" value="{{e}}" {% if e in selected_etapas %}checked{% endif %}>
@@ -253,6 +283,15 @@ def duracion_etapas():
             Año: {{anio}} 
             {% if nombre_mes %} | Mes: {{nombre_mes}} {% else %} | Mes: Todos {% endif %}
         </p>
+        
+        {% if fecha_inicio and fecha_fin %}
+            <p><strong>Mostrando fechas de:</strong> {{fecha_inicio}} a {{fecha_fin}}</p>
+        {% elif fecha_inicio %}
+            <p><strong>Mostrando desde:</strong> {{fecha_inicio}}</p>
+        {% elif fecha_fin %}
+            <p><strong>Mostrando hasta:</strong> {{fecha_fin}}</p>
+        {% endif %}
+
 
         <div style="background-color:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:20px;">
             <h3>Resumen por etapa</h3>
@@ -284,7 +323,7 @@ def duracion_etapas():
     """
     return render_template_string(html, data=data, etapas=ETAPAS_ORDENADAS, selected_etapas=selected_etapas,
                                   busqueda=busqueda, anio=anio, current_year=datetime.now().year,
-                                  contador_etapas=contador_etapas,nombre_mes=nombre_mes)
+                                  contador_etapas=contador_etapas,nombre_mes=nombre_mes,fecha_inicio=fecha_inicio_raw, fecha_fin=fecha_fin_raw)
 
 
 if __name__ == '__main__':
